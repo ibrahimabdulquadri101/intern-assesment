@@ -15,7 +15,7 @@ export async function getResponseVerifyCredentials(apiKey) {
   try {
     const res = await axios.get(`${BASE_URL}/v3/accounts`, {
       headers: {
-        "X-Auth-Token": `api-key ${apiKey}`,
+        "X-Auth-Token": `api-key ${apiKey.trim()}`,
         "Content-Type": "application/json",
       },
       timeout: DEFAULT_TIMEOUT,
@@ -60,7 +60,7 @@ export async function getResponseFetchLists(apiKey, options = {}) {
   try {
     const res = await axios.get(`${BASE_URL}/v3/campaigns`, {
       headers: {
-        "X-Auth-Token": `api-key ${apiKey}`,
+        "X-Auth-Token": `api-key ${apiKey.trim()}`,
         "Content-Type": "application/json",
       },
       params: { page, perPage },

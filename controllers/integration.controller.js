@@ -11,7 +11,13 @@ import { encrypt, decrypt } from "../utils/crypto.js";
 
 export const postIntegrations = async (req, res, next) => {
   try {
-    const { provider, apiKey } = req.body;
+    const { provider, apiKey, userId: bodyUserId } = req.body;
+    const userId = req.user?._id || bodyUserId || req.query.userId;
+    if (!userId)
+      return res
+        .status(400)
+        .json({ error: "userId is required when not authenticated" });
+
     let verifyFn;
     if (provider === "mailchimp") {
       verifyFn = mailChimpVerifyCredentials;
@@ -20,12 +26,11 @@ export const postIntegrations = async (req, res, next) => {
     } else {
       return res.status(400).json({ error: "Unsupported provider" });
     }
+
     try {
       await verifyFn(apiKey);
-      const existingIntegrations = await Integration.find({
-        userId: req.user._id,
-        provider,
-      });
+
+      const existingIntegrations = await Integration.find({ userId, provider });
       const duplicate = existingIntegrations.find((integration) => {
         try {
           return decrypt(integration.apiKey) === apiKey;
@@ -39,9 +44,10 @@ export const postIntegrations = async (req, res, next) => {
           .status(409)
           .json({ error: "Integration with this API key already exists" });
       }
+
       const encryptedKey = encrypt(apiKey);
       const data = await Integration.create({
-        userId: req.user._id,
+        userId,
         provider,
         apiKey: encryptedKey,
         isVerified: true,
@@ -49,9 +55,10 @@ export const postIntegrations = async (req, res, next) => {
       res.status(201).json({ success: true, data });
     } catch (err) {
       console.log(err);
-      return res.status(401).json({ error: err.message });
+      return res.status(401).json("Invalid Credentials");
     }
   } catch (error) {
+    console.log("Verification failed:", error.response?.data || error.message);
     next(error);
   }
 };
@@ -59,16 +66,28 @@ export const postIntegrations = async (req, res, next) => {
 export const getEspLists = async (req, res, next) => {
   try {
     const provider = req.query.provider;
+    const userId = req.user?._id || req.query.userId || req.body.userId;
+    if (!userId)
+      return res
+        .status(400)
+        .json({ error: "userId is required when not authenticated" });
+    if (!provider)
+      return res
+        .status(400)
+        .json({ error: "provider query param is required" });
+
     const integration = await Integration.findOne({
       provider,
-      userId: req.user._id,
+      userId,
       isVerified: true,
     });
+
     if (!integration) {
       return res
         .status(404)
         .json({ error: "Integration not found or not verified" });
     }
+
     const apiKey = decrypt(integration.apiKey);
 
     let lists;

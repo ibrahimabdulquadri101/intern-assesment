@@ -5,6 +5,7 @@ import { userRoute } from "./router/user.routes.js";
 import { integrationRouter } from "./router/integration.routes.js";
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use("/api/v1/auth", userRoute);
 app.use("/api/v1/integration", integrationRouter);
 app.get("/", (req, res) => {
